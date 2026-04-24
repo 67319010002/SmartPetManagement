@@ -14,9 +14,20 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
     const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${fileExt}`;
     const filePath = `pet-images/${fileName}`;
 
+    // ตรวจสอบและสร้าง Bucket 'pets' อัตโนมัติ (ถ้ามีสิทธิ์)
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some(b => b.name === 'pets');
+    
+    if (!bucketExists) {
+      await supabase.storage.createBucket('pets', {
+        public: true,
+        fileSizeLimit: 5242880, // 5MB
+      });
+    }
+
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage
-      .from('pets') // ต้องสร้าง Bucket ชื่อ 'pets' ใน Supabase
+      .from('pets')
       .upload(filePath, file.buffer, {
         contentType: file.mimetype,
         upsert: false
