@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ===========================
+// USER - เจ้าของสัตว์เลี้ยง หรือ สัตวแพทย์
+// ===========================
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String?
+  role      Role     @default(OWNER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  pets            Pet[]
+  appointments    Appointment[]    @relation("OwnerAppointments")
+  vetAppointments Appointment[]    @relation("VetAppointments")
+  medicalRecords  MedicalRecord[]
+
+  @@map("users")
+}
+
+enum Role {
+  OWNER
+  VET
+}
+
+// ===========================
+// PET - สัตว์เลี้ยง
+// ===========================
+model Pet {
+  id        String   @id @default(uuid())
+  name      String
+  species   String   // เช่น dog, cat, rabbit
+  breed     String?  // สายพันธุ์
+  imageUrl  String?  // URL รูปโปรไฟล์สัตว์เลี้ยง
+  age       Int      @default(0) // ปี
+  ageMonths Int      @default(0) // เดือน
+  ageDays   Int      @default(0) // วัน
+  weight    Float?
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  appointments   Appointment[]
+  medicalRecords MedicalRecord[]
+
+  @@map("pets")
+}
+
+// ===========================
+// APPOINTMENT - คิวนัดหมาย
+// ===========================
+model Appointment {
+  id          String            @id @default(uuid())
+  date        DateTime          // วันที่นัด
+  startTime   DateTime          // เวลาเริ่ม
+  endTime     DateTime          // เวลาสิ้นสุด
+  reason      String            // เหตุผลที่มาพบ
+  status      AppointmentStatus @default(PENDING)
+  note        String?           // หมายเหตุ
+  ownerId     String
+  vetId       String?           // สัตวแพทย์ที่รับผิดชอบ
+  petId       String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  owner         User           @relation("OwnerAppointments", fields: [ownerId], references: [id], onDelete: Cascade)
+  vet           User?          @relation("VetAppointments", fields: [vetId], references: [id])
+  pet           Pet            @relation(fields: [petId], references: [id], onDelete: Cascade)
+  medicalRecord MedicalRecord?
+
+  @@map("appointments")
+}
+
+enum AppointmentStatus {
+  PENDING    // รอยืนยัน
+  CONFIRMED  // ยืนยันแล้ว
+  COMPLETED  // เสร็จสิ้น
+  CANCELLED  // ยกเลิก
+}
+
+// ===========================
+// MEDICAL RECORD - ประวัติการรักษา
+// ===========================
+model MedicalRecord {
+  id            String   @id @default(uuid())
+  diagnosis     String   // การวินิจฉัย
+  treatment     String   // การรักษา
+  prescription  String?  // ใบสั่งยา
+  notes         String?  // หมายเหตุเพิ่มเติม
+  visitDate     DateTime @default(now())
+  nextVisitDate DateTime? // วันนัดครั้งถัดไป
+  appointmentId String   @unique
+  petId         String
+  vetId         String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  pet         Pet         @relation(fields: [petId], references: [id], onDelete: Cascade)
+  vet         User        @relation(fields: [vetId], references: [id])
+
+  @@map("medical_records")
+}

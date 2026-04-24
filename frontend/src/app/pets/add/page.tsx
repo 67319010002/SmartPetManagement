@@ -1,0 +1,247 @@
+'use client';
+
+import { useState, useRef } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+import Navbar from '@/components/Navbar';
+import api from '@/lib/api';
+import toast from 'react-hot-toast';
+import { PawPrint, Save, Loader2, Camera, Info, ArrowLeft, Upload } from 'lucide-react';
+import Link from 'next/link';
+
+export default function AddPetPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    species: '',
+    breed: '',
+    imageUrl: '',
+    age: 0,
+    ageMonths: 0,
+    ageDays: 0,
+    weight: 0,
+  });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const uploadData = new FormData();
+    uploadData.append('file', file);
+
+    setUploading(true);
+    try {
+      const response = await api.post('/upload', uploadData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setFormData({ ...formData, imageUrl: response.data.url });
+      toast.success('อัปโหลดรูปภาพสำเร็จ');
+    } catch (error: any) {
+      toast.error('อัปโหลดล้มเหลว');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      await api.post('/pets', {
+        ...formData,
+        age: Number(formData.age),
+        ageMonths: Number(formData.ageMonths),
+        ageDays: Number(formData.ageDays),
+        weight: formData.weight ? Number(formData.weight) : undefined,
+      });
+      toast.success('เพิ่มข้อมูลสัตว์เลี้ยงสำเร็จ');
+      router.push('/pets');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการบันทึก');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!user || user.role !== 'OWNER') return null;
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-12">
+      <Navbar />
+      <main className="max-w-4xl mx-auto py-10 px-4">
+        <div className="mb-6">
+          <Link href="/dashboard" className="inline-flex items-center text-gray-500 hover:text-indigo-600 font-medium transition-colors">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            กลับหน้าหลัก
+          </Link>
+        </div>
+        
+        <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
+          <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-8 py-12 text-white">
+            <h1 className="text-3xl font-bold flex items-center">
+              <PawPrint className="w-8 h-8 mr-3" />
+              ลงทะเบียนสัตว์เลี้ยงใหม่
+            </h1>
+            <p className="text-indigo-100 mt-2">กรอกรายละเอียดเพื่อสร้างประวัติสุขภาพให้กับสัตว์เลี้ยงของคุณ</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-8 space-y-8">
+            {/* Image Upload Section */}
+            <div className="flex flex-col items-center space-y-4">
+              <div 
+                className="relative w-48 h-48 rounded-3xl bg-gray-100 border-4 border-white shadow-xl overflow-hidden cursor-pointer group"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {formData.imageUrl ? (
+                  <img src={formData.imageUrl} alt="Pet" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                    <Camera className="w-12 h-12 mb-2" />
+                    <span className="text-xs">คลิกเพื่ออัปโหลด</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                  <Upload className="w-8 h-8" />
+                </div>
+                {uploading && (
+                  <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                  </div>
+                )}
+              </div>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+                className="hidden" 
+                accept="image/*"
+              />
+              <p className="text-xs text-gray-400">แนะนำขนาด 500x500 px (สูงสุด 5MB)</p>
+            </div>
+
+            {/* Section 1: Basic Info */}
+            <div className="space-y-6">
+              <h2 className="text-lg font-bold text-gray-900 border-b pb-2">ข้อมูลพื้นฐาน</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">ชื่อสัตว์เลี้ยง</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder="เช่น น้องมงคล"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">ประเภทสัตว์เลี้ยง</label>
+                  <select
+                    required
+                    value={formData.species}
+                    onChange={(e) => setFormData({ ...formData, species: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="">เลือกประเภท</option>
+                    <option value="DOG">สุนัข</option>
+                    <option value="CAT">แมว</option>
+                    <option value="RABBIT">กระต่าย</option>
+                    <option value="BIRD">นก</option>
+                    <option value="OTHER">อื่นๆ</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-semibold text-gray-700">สายพันธุ์</label>
+                  <input
+                    type="text"
+                    value={formData.breed}
+                    onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder="เช่น โกลเด้น รีทรีฟเวอร์"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Detailed Age & Weight */}
+            <div className="space-y-6">
+              <h2 className="text-lg font-bold text-gray-900 border-b pb-2">อายุและน้ำหนัก</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">อายุ (ปี)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.age}
+                    onChange={(e) => setFormData({ ...formData, age: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">เดือน</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="11"
+                    value={formData.ageMonths}
+                    onChange={(e) => setFormData({ ...formData, ageMonths: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">วัน</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="30"
+                    value={formData.ageDays}
+                    onChange={(e) => setFormData({ ...formData, ageDays: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">น้ำหนัก (kg)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={formData.weight}
+                    onChange={(e) => setFormData({ ...formData, weight: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-6">
+              <button
+                type="submit"
+                disabled={loading || uploading}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-100 transition-all flex items-center justify-center space-x-2 disabled:opacity-70"
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" />
+                    <span>ลงทะเบียนสัตว์เลี้ยง</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+  );
+}
