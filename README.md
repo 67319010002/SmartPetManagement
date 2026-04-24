@@ -77,5 +77,21 @@ npm run dev
 
 ---
 
+## 🛠 ปัญหาที่พบและแนวทางการแก้ไข (Troubleshooting)
+
+ในระหว่างการพัฒนาและ Deploy เราพบปัญหาสำคัญดังนี้:
+
+### **1. ปัญหา CORS Policy บน Vercel**
+*   **อาการ**: หน้าเว็บ Frontend ไม่สามารถเรียกใช้ API ได้ (ติด Error: `No 'Access-Control-Allow-Origin' header`)
+*   **สาเหตุ**: เกิดจาก Browser บล็อกการเชื่อมต่อข้ามโดเมน และความขัดแย้งระหว่างการใช้ Wildcard (`*`) กับ `Credentials: true`
+*   **การแก้ไข**: ปรับการตั้งค่าใน `src/index.ts` และ `vercel.json` ให้ใช้ `Origin: '*'` คู่กับ `Credentials: false` เนื่องจากเราใช้ Bearer Token (Authorization Header) อยู่แล้ว ซึ่งไม่ต้องใช้ Cookie
+
+### **2. ปัญหา Express 5 Wildcard Crash**
+*   **อาการ**: Backend ล่ม (500 Internal Server Error) เมื่อรันบน Vercel
+*   **สาเหตุ**: Express เวอร์ชั่น 5 ไม่รองรับการเขียน Path แบบ `*` ในบางกรณี (เช่น `app.options('*')`) และต้องการการนิยาม Parameter ที่ชัดเจน
+*   **การแก้ไข**: นำการจัดการ OPTIONS แบบ Manual ออก และให้ `cors()` middleware จัดการทั้งหมดแทน เพื่อความเสถียรบน Express 5
+
+---
+
 ## 📄 ใบอนุญาต (License)
 โปรเจกต์นี้สร้างขึ้นเพื่อการศึกษาและพัฒนาโดยทีม **SmartPet** และ **AI Coding Assistant (Antigravity)**
