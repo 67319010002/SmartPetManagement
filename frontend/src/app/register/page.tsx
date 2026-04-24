@@ -18,6 +18,8 @@ import {
   ShieldCheck
 } from 'lucide-react';
 
+import api from '@/lib/api';
+
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
     email: '',
@@ -27,7 +29,7 @@ export default function RegisterPage() {
     role: 'OWNER' as 'OWNER' | 'VET',
   });
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { login } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,7 +37,12 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await register(formData);
+      const response = await api.post('/auth/register', formData);
+      const { token, user } = response.data.data;
+      
+      // บันทึกสถานะการล็อกอิน
+      login(token, user);
+      
       toast.success('ลงทะเบียนสำเร็จ! ยินดีต้อนรับสู่ SmartPet');
       router.push('/dashboard');
     } catch (error: any) {

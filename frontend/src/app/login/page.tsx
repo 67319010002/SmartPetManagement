@@ -15,6 +15,8 @@ import {
   ShieldCheck
 } from 'lucide-react';
 
+import api from '@/lib/api';
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,7 +29,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      const response = await api.post('/auth/login', { email, password });
+      const { token, user } = response.data.data;
+      
+      login(token, user);
+      
       toast.success('ยินดีต้อนรับกลับเข้าสู่ระบบ!');
       router.push('/dashboard');
     } catch (error: any) {
